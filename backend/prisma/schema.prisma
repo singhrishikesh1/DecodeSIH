@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── User ───────────────────────────────────────────────────────────────────
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      String   @default("INSPECTOR")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// ─── Drone ──────────────────────────────────────────────────────────────────
+model Drone {
+  id             String   @id
+  name           String
+  model          String
+  status         String   @default("STANDBY")
+  assignedArea   String?  @map("assigned_area")
+  lat            Float?
+  lng            Float?
+  altitude       Float?
+  speedKmH       Float?   @map("speed_km_h")
+  batteryPercent Int?     @map("battery_percent")
+  rotorHealth    Int?     @map("rotor_health")
+  cameraStream   String?  @map("camera_stream")
+  lastServiceDate String? @map("last_service_date")
+  nextServiceDue  String? @map("next_service_due")
+  totalFlightHours Float? @map("total_flight_hours")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  missions Mission[]
+
+  @@map("drones")
+}
+
+// ─── Mission ────────────────────────────────────────────────────────────────
+model Mission {
+  id        String    @id @default(uuid())
+  droneId   String?   @map("drone_id")
+  startTime DateTime? @map("start_time")
+  endTime   DateTime? @map("end_time")
+  status    String    @default("PLANNED")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  drone       Drone?       @relation(fields: [droneId], references: [id])
+  inspections Inspection[]
+
+  @@index([droneId])
+  @@map("missions")
+}
+
+// ─── Inspection ─────────────────────────────────────────────────────────────
+model Inspection {
+  id                   String    @id @default(uuid())
+  missionId            String?   @map("mission_id")
+  legacyId             String?   @unique @map("legacy_id")
+  assetName            String    @map("asset_name")
+  assetType            String    @map("asset_type")
+  locationName         String?   @map("location_name")
+  latitude             Float?
+  longitude            Float?
+  altitude             Float?
+  imageUrl             String?   @map("image_url")
+  annotatedImageUrl    String?   @map("annotated_image_url")
+  status               String    @default("COMPLETED")
+  errorMessage         String?   @map("error_message")
+  timestamp            DateTime  @default(now())
+  modelVersion         String?   @map("model_version")
+  processingTimestamp  DateTime? @map("processing_timestamp")
+
+  // Legacy compat fields (denormalized from potholes for old frontend)
+  title                String?
+  inspector            String?
+  alertSent            Boolean   @default(false) @map("alert_sent")
+  thumbnailUrl         String?   @map("thumbnail_url")
+
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  mission   Mission?  @relation(fields: [missionId], references: [id])
+  potholes  Pothole[]
+
+  @@index([timestamp])
+  @@index([status])
+  @@index([assetType])
+  @@index([legacyId])
+  @@map("inspections")
+}
+
+// ─── Pothole ────────────────────────────────────────────────────────────────
+model Pothole {
+  id               String   @id @default(uuid())
+  potholeId        String?  @unique @map("pothole_id") // Persistent sequential ID: P001, P002...
+  inspectionId     String   @map("inspection_id")
+  defectClass      String   @map("defect_class")
+  confidence       Float?
+  areaM2           Float?   @map("area_m2")
+  depthM           Float?   @map("depth_m")
+  depthType        String?  @map("depth_type")
+  volumeM3         Float?   @map("volume_m3")
+  lengthM          Float?   @map("length_m")
+  widthM           Float?   @map("width_m")
+  severity         String?
+  riskScore        Int?     @map("risk_score")
+  riskReasons      Json?    @map("risk_reasons")
+  recommendedAction  String? @map("recommended_action")
+
+  // GPS / location
+  gpsAvailable     Boolean  @default(false) @map("gps_available")
+  gpsStatus        String?  @default("unavailable") @map("gps_status")
+
+  // Repair cost breakdown
+  materialType     String?  @map("material_type")
+  materialQuantity String?  @map("material_quantity")
+  materialCost     Float?   @map("material_cost")
+  labourCost       Float?   @map("labour_cost")
+  equipmentCost    Float?   @map("equipment_cost")
+  totalRepairCost  Float?   @map("total_repair_cost")
+  costCurrency     String?  @default("₹") @map("cost_currency")
+  requiredMaterials Json?   @map("required_materials")
+
+  // Image association (actual saved pothole image)
+  imagePath        String?  @map("image_path")
+
+  // Legacy / internals
+  estimatedCost    Float?   @map("estimated_cost")
+  bbox             Json?
+  maskUrl          String?  @map("mask_url")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id])
+
+  @@index([inspectionId])
+  @@index([severity])
+  @@index([potholeId])
+  @@map("potholes")
+}
+
+// ─── PotholeSequence ─────────────────────────────────────────────────────────
+// Single-row counter for atomic persistent P001/P002/... ID generation.
+model PotholeSequence {
+  id      String @id @default("default")
+  current Int    @default(0) @map("current_value")
+
+  @@map("pothole_sequences")
+}
+
+// ─── CostConfig ─────────────────────────────────────────────────────────────
+model CostConfig {
+  id              String   @id @default(uuid())
+  materialRate    Float?   @map("material_rate")
+  labourRate      Float?   @map("labour_rate")
+  equipmentRate   Float?   @map("equipment_rate")
+  transportRate   Float?   @map("transport_rate")
+  contingencyRate Float?   @map("contingency_rate")
+  currency        String   @default("₹")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("cost_configs")
+}
+
+// ─── ServiceTicket (drone servicing) ────────────────────────────────────────
+model ServiceTicket {
+  id          String   @id @default(uuid())
+  droneId     String   @map("drone_id")
+  droneName   String   @map("drone_name")
+  serviceType String   @map("service_type")
+  date        DateTime @default(now())
+  technician  String?
+  status      String   @default("SCHEDULED")
+  cost        String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("service_tickets")
+}
