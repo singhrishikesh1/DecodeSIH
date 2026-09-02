@@ -1,0 +1,178 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * RX — Agricultural drone platform design system.
+ * Dark, near-black surfaces + a single warm gold accent.
+ * The dashboard surface (/dashboard) uses the `.surface-light` scope.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-panel: var(--panel);
+  --color-elevated: var(--elevated);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-dim: var(--accent-dim);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-display: "Outfit", "Helvetica Neue", sans-serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.155 0.002 264);
+  --foreground: oklch(0.955 0.006 85);
+  --card: oklch(0.185 0.002 264);
+  --card-foreground: oklch(0.955 0.006 85);
+  --panel: oklch(0.205 0.003 264);
+  --elevated: oklch(0.235 0.004 264);
+
+  --primary: oklch(0.855 0.135 89);
+  --primary-foreground: oklch(0.18 0.02 80);
+  --secondary: oklch(0.235 0.004 264);
+  --secondary-foreground: oklch(0.955 0.006 85);
+
+  --muted: oklch(0.225 0.003 264);
+  --muted-foreground: oklch(0.62 0.005 264);
+  --subtle: oklch(0.47 0.005 264);
+
+  --accent: oklch(0.855 0.135 89);
+  --accent-foreground: oklch(0.18 0.02 80);
+  --accent-dim: oklch(0.72 0.1 88);
+
+  --destructive: oklch(0.6 0.21 25);
+  --destructive-foreground: oklch(0.98 0.005 85);
+  --success: oklch(0.68 0.15 150);
+
+  --border: oklch(1 0 0 / 8%);
+  --border-strong: oklch(1 0 0 / 16%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.855 0.135 89 / 45%);
+}
+
+/* Light dashboard scope (mirrors the product UI in the reference video) */
+.surface-light {
+  --background: oklch(0.975 0.001 264);
+  --foreground: oklch(0.18 0.008 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.008 264);
+  --panel: oklch(0.985 0.001 264);
+  --elevated: oklch(0.955 0.002 264);
+  --primary: oklch(0.52 0.19 264);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.002 264);
+  --secondary-foreground: oklch(0.2 0.008 264);
+  --muted: oklch(0.965 0.002 264);
+  --muted-foreground: oklch(0.55 0.008 264);
+  --subtle: oklch(0.68 0.006 264);
+  --accent: oklch(0.52 0.19 264);
+  --accent-foreground: oklch(1 0 0);
+  --border: oklch(0.2 0.01 264 / 9%);
+  --border-strong: oklch(0.2 0.01 264 / 16%);
+  --input: oklch(0.2 0.01 264 / 12%);
+  --destructive: oklch(0.58 0.21 25);
+  --success: oklch(0.6 0.16 150);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+}
+
+/* ---------- Utilities ---------- */
+
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+}
+
+@utility grid-lines {
+  background-image:
+    linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+  background-size: 12.5% 25%;
+}
+
+@utility card-panel {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--panel) 92%, transparent),
+    var(--card)
+  );
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+@utility card-panel-active {
+  background:
+    radial-gradient(
+      120% 130% at 12% 88%,
+      color-mix(in oklab, var(--accent) 12%, transparent),
+      transparent 62%
+    ),
+    var(--card);
+  border: 1px solid color-mix(in oklab, var(--accent) 62%, transparent);
+  border-radius: var(--radius-xl);
+}
+
+@utility glow-accent {
+  box-shadow: 0 0 60px -18px color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+@utility text-balance-tight {
+  text-wrap: balance;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
