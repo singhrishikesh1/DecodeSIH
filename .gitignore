@@ -1,0 +1,10 @@
+
+ai_engine/*.log
+/ai_engine.log
+ai_engine/__pycache__/
+ai_engine/**/*.pyc
+backend/.agents/
+backend/.claude/
+backend/.windsurf/
+backend/skills-lock.json
+backend/uploads/

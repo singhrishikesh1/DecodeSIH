@@ -7,10 +7,6 @@ import {
   Search,
   Settings,
   BarChart3,
-  Plus,
-  Minus,
-  Maximize,
-  Compass,
   MoreHorizontal,
   Radio,
   AlertTriangle,
@@ -24,7 +20,6 @@ import {
   Wrench,
   Calculator,
 } from "lucide-react";
-import cityMap from "@/assets/city-map.jpg";
 import {
   API_BASE,
   fetchDashboard,
@@ -35,7 +30,8 @@ import {
   type Inspection,
   type Pothole,
 } from "@/lib/api";
-import { formatINR, formatTimeAgo, severityStyle, droneStatusText, projectGPS } from "@/lib/format";
+import { formatINR, formatTimeAgo, droneStatusText } from "@/lib/format";
+import { DeviceLocationMap } from "@/components/rx/DeviceLocationMap";
 
 const title = "Overview — RX pothole detection platform";
 const description =
@@ -67,8 +63,6 @@ const railLinks = [
   { icon: Radio, to: "/live" as const, label: "Live AI View" },
   { icon: Calculator, to: "/cost-estimator" as const, label: "Cost Estimator" },
 ];
-
-const layers = ["View all", "Aerial", "Road damage", "Weather", "Survey drones", "No-Fly zones"];
 
 function toneClass(tone: string) {
   if (tone === "warn") return "text-destructive";
@@ -200,7 +194,6 @@ function buildNotifications(inspections: Inspection[]): NotificationItem[] {
 }
 
 function Dashboard() {
-  const [layer, setLayer] = useState(0);
   const [data, setData] = useState<DashboardData | null>(null);
   const [drones, setDrones] = useState<Drone[]>([]);
   const [potholes, setPotholes] = useState<Pothole[]>([]);
@@ -250,27 +243,6 @@ function Dashboard() {
       suffix: "",
     },
   ];
-
-  const dronePoints = drones
-    .filter((d) => d.lat != null && d.lng != null)
-    .map((d) => ({ lat: d.lat, lng: d.lng }));
-  const potholePoints = potholes.map((p) => ({
-    lat: p.inspection?.latitude ?? null,
-    lng: p.inspection?.longitude ?? null,
-  }));
-  const project = projectGPS([...potholePoints, ...dronePoints]);
-
-  // Group pothole markers by exact GPS so overlapping detections stack as one point.
-  const potholeMarkers = new Map<string, Pothole[]>();
-  for (const p of potholes) {
-    const lat = p.inspection?.latitude;
-    const lng = p.inspection?.longitude;
-    if (lat == null || lng == null) continue;
-    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-    const bucket = potholeMarkers.get(key);
-    if (bucket) bucket.push(p);
-    else potholeMarkers.set(key, [p]);
-  }
 
   const notifications = buildNotifications(recentInspections);
 
@@ -375,114 +347,8 @@ function Dashboard() {
             </div>
 
             <div className="min-w-0 flex-1">
-              {/* map */}
-              <div className="relative h-[300px] overflow-hidden border-b border-border md:h-[430px]">
-                <img
-                  src={cityMap}
-                  width={1600}
-                  height={1008}
-                  alt="Isometric city map of the active road scanning zone"
-                  className="size-full object-cover"
-                />
-
-                {/* pothole markers from real GPS */}
-                {[...potholeMarkers.entries()].map(([key, group]) => {
-                  const pos = project({
-                    lat: group[0]?.inspection?.latitude ?? null,
-                    lng: group[0]?.inspection?.longitude ?? null,
-                  });
-                  if (!pos) return null;
-                  const style = severityStyle(group[0]?.severity);
-                  const hottest = group.reduce((a, b) =>
-                    (b.severity ?? "").toUpperCase() === "CRITICAL" ? b : a,
-                  );
-                  const hottestStyle = severityStyle(hottest.severity);
-                  return (
-                    <motion.div
-                      key={key}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.6, ease }}
-                      style={{ top: pos.top, left: pos.left }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2"
-                    >
-                      <div
-                        className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium ${hottestStyle.bg} ${hottestStyle.text}`}
-                      >
-                        <MapPin size={9} />
-                        <span>
-                          {group.length > 1 ? `${group.length}×` : ""}
-                          {group[0]?.potholeId ?? "detection"}
-                        </span>
-                        <span className="opacity-70">{style.label}</span>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-
-                {/* drone markers from real fleet GPS */}
-                {drones
-                  .filter((d) => d.lat != null && d.lng != null)
-                  .map((d, i) => {
-                    const pos = project({ lat: d.lat, lng: d.lng });
-                    if (!pos) return null;
-                    return (
-                      <motion.div
-                        key={d.id}
-                        style={{ top: pos.top, left: pos.left }}
-                        className="absolute"
-                        animate={{ y: [0, -7, 0] }}
-                        transition={{
-                          duration: 3.4,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                          delay: i * 0.6,
-                        }}
-                      >
-                        <span className="absolute -top-4 left-0 whitespace-nowrap text-[9px] text-muted-foreground">
-                          {d.name}
-                        </span>
-                        <DroneGlyph />
-                      </motion.div>
-                    );
-                  })}
-
-                {/* layers panel */}
-                <div className="absolute top-4 right-4 w-36 rounded-xl border border-border bg-card/95 p-1.5 backdrop-blur">
-                  {layers.map((l, i) => (
-                    <button
-                      key={l}
-                      onClick={() => setLayer(i)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors hover:bg-elevated"
-                    >
-                      <span
-                        className={`size-2 rounded-full border ${
-                          i === layer ? "border-primary bg-primary" : "border-border-strong"
-                        }`}
-                      />
-                      <span className={i === layer ? "font-medium" : "text-muted-foreground"}>
-                        {l}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* zoom controls */}
-                <div className="absolute right-4 bottom-4 flex flex-col gap-1.5">
-                  {[Plus, Minus, Maximize, Compass].map((Icon, i) => (
-                    <button
-                      key={i}
-                      className={`flex size-7 items-center justify-center rounded-lg border border-border transition-colors ${
-                        i === 3
-                          ? "bg-foreground text-background"
-                          : "bg-card text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <Icon size={13} />
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* map — current browser device location via Leaflet + geolocation */}
+              <DeviceLocationMap />
 
               {/* bottom panels */}
               <div className="grid divide-border md:grid-cols-4 md:divide-x">

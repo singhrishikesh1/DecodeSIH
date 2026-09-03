@@ -136,7 +136,7 @@ class PDFService {
 
     doc.fontSize(9).fillColor('#334155');
     doc.text('Pothole / Defect Image', 40, y - 2);
-    const nextY = PDFService._embedImage(doc, pothole.imagePath || pothole.maskUrl, y + 10);
+    const nextY = PDFService._embedImage(doc, pothole.imagePath, y + 10);
     const blockLeftStartY = Math.max(nextY, y + 9 * 34);
 
     // Volumetric / measurements

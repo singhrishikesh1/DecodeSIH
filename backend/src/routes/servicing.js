@@ -2,13 +2,12 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../config/prisma');
 
-// GET /api/servicing - get all service records + fleet overview
+// GET /api/servicing - get fleet health overview
+// Note: the service_tickets table was removed by the clean_production_schema
+// migration, so service history is no longer available.
 router.get('/', async (req, res) => {
   try {
-    const [drones, serviceLogs] = await Promise.all([
-      prisma.drone.findMany({ orderBy: { createdAt: 'asc' } }),
-      prisma.serviceTicket.findMany({ orderBy: { date: 'desc' } }),
-    ]);
+    const drones = await prisma.drone.findMany({ orderBy: { createdAt: 'asc' } });
 
     const fleetHealthOverview = drones.map((d) => ({
       droneId: d.id,
@@ -27,34 +26,9 @@ router.get('/', async (req, res) => {
       success: true,
       data: {
         fleetHealthOverview,
-        serviceHistory: serviceLogs,
+        serviceHistory: [],
       },
     });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// POST /api/servicing/request - book a drone servicing ticket
-router.post('/request', async (req, res) => {
-  try {
-    const { droneId, droneName, serviceType, notes } = req.body;
-    if (!droneId || !serviceType) {
-      return res.status(400).json({ success: false, error: 'droneId and serviceType are required' });
-    }
-
-    const newRecord = await prisma.serviceTicket.create({
-      data: {
-        droneId,
-        droneName: droneName || 'Drone Unit',
-        serviceType,
-        technician: 'Assigned Senior Avionics Lead',
-        notes: notes || 'Routine preventative servicing scheduled.',
-        status: 'SCHEDULED',
-      },
-    });
-
-    res.status(201).json({ success: true, data: newRecord });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

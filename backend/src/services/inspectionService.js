@@ -86,7 +86,6 @@ async function persistAIResults(inspectionId, aiResult) {
           lengthM: det.length_m || null,
           widthM: det.width_m || null,
           bbox: det.bbox || null,
-          maskUrl: det.mask_url || null,
         },
       });
     }

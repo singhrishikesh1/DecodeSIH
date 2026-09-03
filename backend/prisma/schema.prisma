@@ -136,7 +136,6 @@ model Pothole {
   // Legacy / internals
   estimatedCost    Float?   @map("estimated_cost")
   bbox             Json?
-  maskUrl          String?  @map("mask_url")
 
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -171,21 +170,4 @@ model CostConfig {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("cost_configs")
-}
-
-// ─── ServiceTicket (drone servicing) ────────────────────────────────────────
-model ServiceTicket {
-  id          String   @id @default(uuid())
-  droneId     String   @map("drone_id")
-  droneName   String   @map("drone_name")
-  serviceType String   @map("service_type")
-  date        DateTime @default(now())
-  technician  String?
-  status      String   @default("SCHEDULED")
-  cost        String?
-  notes       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("service_tickets")
 }

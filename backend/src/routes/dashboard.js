@@ -5,10 +5,9 @@ const prisma = require('../config/prisma');
 // GET /api/dashboard — aggregated dashboard data
 router.get('/', async (req, res) => {
   try {
-    const [totalInspections, totalDrones, totalServiceTickets, recentInspections] = await Promise.all([
+    const [totalInspections, totalDrones, recentInspections] = await Promise.all([
       prisma.inspection.count(),
       prisma.drone.count(),
-      prisma.serviceTicket.count(),
       prisma.inspection.findMany({
         take: 5,
         orderBy: { timestamp: 'desc' },
@@ -48,7 +47,6 @@ router.get('/', async (req, res) => {
         fleet: {
           totalDrones,
           activeDrones,
-          totalServiceTickets,
         },
         recentInspections,
       },

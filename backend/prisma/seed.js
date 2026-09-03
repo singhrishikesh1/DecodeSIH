@@ -92,40 +92,6 @@ async function main() {
   });
   console.log('  ✓ 3 drones seeded');
 
-  // ─── Service Tickets ────────────────────────────────────────────────────
-  await prisma.serviceTicket.upsert({
-    where: { id: 'SRV-901' },
-    update: {},
-    create: {
-      id: 'SRV-901',
-      droneId: 'DRONE-PUNE-02',
-      droneName: 'AeroFalcon-P2 Autonomous',
-      serviceType: 'Motor Calibration & Gimbal Alignment',
-      date: new Date('2026-07-15'),
-      technician: 'Suresh More (Cert. Drone Engineer)',
-      status: 'COMPLETED',
-      cost: '₹4,500',
-      notes: 'Replaced Rotor #3 bearing set and recalibrated 4K optical thermal camera sensor.',
-    },
-  });
-
-  await prisma.serviceTicket.upsert({
-    where: { id: 'SRV-902' },
-    update: {},
-    create: {
-      id: 'SRV-902',
-      droneId: 'DRONE-PUNE-01',
-      droneName: 'SkyGuardian-X1 Pro',
-      serviceType: 'Battery Pack Cycle & Propeller Inspection',
-      date: new Date('2026-07-20'),
-      technician: 'Amit Shinde (Avionics Tech)',
-      status: 'COMPLETED',
-      cost: '₹3,200',
-      notes: 'High-voltage battery telemetry check normal. Rotors balanced to 99.8% precision.',
-    },
-  });
-  console.log('  ✓ 2 service tickets seeded');
-
   // ─── Users ──────────────────────────────────────────────────────────────
   await prisma.user.upsert({
     where: { email: 'admin@droneinfrastructure.org' },

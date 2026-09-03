@@ -13,7 +13,6 @@ export type DashboardSummary = {
 export type DashboardFleet = {
   totalDrones: number;
   activeDrones: number;
-  totalServiceTickets: number;
 };
 
 export type PotholeRiskReasons = {
@@ -53,7 +52,6 @@ export type Pothole = {
   riskReasons?: PotholeRiskReasons | null;
   bbox?: { x1: number; x2: number; y1: number; y2: number } | null;
   recommendedAction?: string | null;
-  maskUrl?: string | null;
   gpsAvailable: boolean;
   gpsStatus: string | null;
   materialType: string | null;
