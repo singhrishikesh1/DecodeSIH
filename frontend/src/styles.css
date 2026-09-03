@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * RX — Agricultural drone platform design system.
+ * Dronacharya — Agricultural drone platform design system.
  * Dark, near-black surfaces + a single warm gold accent.
  * The dashboard surface (/dashboard) uses the `.surface-light` scope.
  */

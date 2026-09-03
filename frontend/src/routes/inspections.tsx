@@ -24,7 +24,7 @@ import {
 } from "@/lib/api";
 import { formatConfidence, formatDate, formatTimeAgo, severityStyle } from "@/lib/format";
 
-const title = "Inspections — RX pothole detection platform";
+const title = "Inspections — Dronacharya pothole detection platform";
 
 export const Route = createFileRoute("/inspections")({
   head: () => ({

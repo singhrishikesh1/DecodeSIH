@@ -4,7 +4,7 @@ const ease = [0.16, 1, 0.3, 1] as const;
 
 const side = [
   {
-    title: "Roadstar AI joins RX platform",
+    title: "Roadstar AI joins Dronacharya platform",
     body: "We are thrilled to welcome Roadstar AI to the Pothole Detection family. Their expertise in autonomous drone navigation will enhance our road scanning capabilities.",
     date: "July 17, 2024",
   },

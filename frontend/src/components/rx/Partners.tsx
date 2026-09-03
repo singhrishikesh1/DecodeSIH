@@ -8,12 +8,12 @@ const partners = [
   {
     name: "CITY OF AUSTIN",
     quote:
-      "RX has transformed our road inspection workflow. We went from monthly manual surveys to daily automated scans across 400+ miles of roads.",
+      "Dronacharya has transformed our road inspection workflow. We went from monthly manual surveys to daily automated scans across 400+ miles of roads.",
   },
   {
     name: "DOT CALIFORNIA",
     quote:
-      "The pothole detection accuracy is outstanding. We've reduced repair response times by 60% since adopting the RX platform.",
+      "The pothole detection accuracy is outstanding. We've reduced repair response times by 60% since adopting the Dronacharya platform.",
   },
   {
     name: "INFRATECH CORP",
@@ -23,7 +23,7 @@ const partners = [
   {
     name: "ROADSTAR AI",
     quote:
-      "As Roadstar AI, we're thrilled to partner with RX. The drone survey integration and AI damage assessment is exactly what municipalities need.",
+      "As Roadstar AI, we're thrilled to partner with Dronacharya. The drone survey integration and AI damage assessment is exactly what municipalities need.",
   },
   {
     name: "PAVEMENT360",

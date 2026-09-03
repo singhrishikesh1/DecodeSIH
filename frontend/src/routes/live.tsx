@@ -17,7 +17,7 @@ import {
 import { fetchLiveState, type LiveState } from "@/lib/api";
 import { formatConfidence, formatCoord, formatTimeAgo } from "@/lib/format";
 
-const title = "Live AI View — RX pothole detection platform";
+const title = "Live AI View — Dronacharya pothole detection platform";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
