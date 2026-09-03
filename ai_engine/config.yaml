@@ -1,0 +1,112 @@
+# ============================================================================
+# Drone Infrastructure - Laptop AI Detection Pipeline Configuration
+#
+# Real hardware flow:
+#   Drone camera -> RPi -> H.264/RTP over UDP:5000 -> laptop (this AI engine)
+#   Flight controller GPS -> MAVLink -> RPi -> UDP:14550 -> laptop (pymavlink GPS_RAW_INT)
+#   laptop AI -> backend/database -> frontend
+# ============================================================================
+
+video:
+  # UDP RTP/H.264 source (Raspberry Pi sender)
+  host: "0.0.0.0"          # bind address on laptop
+  port: 5000               # UDP port the Pi sends RTP/H.264 to
+  # Stream is H.264 only, packetized as RTP (pt=96). Encoder decodes via PyAV/FFmpeg.
+  codec: "h264"
+  transport: "rtp"
+  # Latest-frame buffer (never an unbounded queue). Old frames are dropped.
+  latest_buffer_size: 1
+  # Max age (seconds) of a frame before it is considered stale.
+  frame_max_age_s: 0.5
+
+gps:
+  # MAVLink GPS_RAW_INT source forwarded from the Raspberry Pi
+  host: "0.0.0.0"
+  port: 14550
+  baud: 57600              # the Pi telemetry link baud (pass-through, informational)
+  min_fix_type: 3          # 3 = GPS_RAW_INT fix_type 3D FIX
+  # Seconds without a valid fix before GPS is treated as unavailable/stale.
+  stale_after_s: 3.0
+
+lidar:
+  # LiDAR sensor is NOT installed and NO source exists in this project.
+  # This section is the explicit integration contract for a future sensor.
+  # enabled must be false; the reader reports "unavailable" and never fabricates
+  # a reading, so pothole.lidar_status stays honest ('unavailable').
+  enabled: false
+  transport: null           # when added, e.g. "websocket" (no protocol is invented)
+  host: null
+  port: null
+
+detection:
+  model_path: "../pothole-detection-web/weights/pretrained/best.onnx"
+  input_size: 640
+  confidence_threshold: 0.30
+  nms_threshold: 0.45
+  classes: ["pothole"]
+
+measurement:
+  # Physical calibration (pixel -> ground metres).
+  # The live stream is 640x480. The bundled config measured at 1280x720 does NOT
+  # match it, so physical measurement is reported as UNCALIBRATED unless a matching
+  # calibration is provided. Pixel-space measurements are always stored.
+  calibrated: false
+  # When false, physical cm/m/area are NOT fabricated -> stored as null/uncalibrated.
+  height_m: null
+  pitch_angle_deg: 90.0
+  camera_matrix: null       # 3x3 intrinsics matching the LIVE 640x480 stream, if known
+  distortion_coefficients: null
+
+severity:
+  # Severity requires physical geometry/depth. Without validated calibration a real
+  # depth/area is unknown, so severity is stored as unclassified (INSUFFICIENT_DATA)
+  # rather than invented.
+  thresholds:
+    LOW:      { max_depth_cm: 3.0,  max_area_cm2: 500.0,  max_volume_cm3: 1500.0 }
+    MEDIUM:   { max_depth_cm: 5.0,  max_area_cm2: 1500.0, max_volume_cm3: 5000.0 }
+    HIGH:     { max_depth_cm: 8.0,  max_area_cm2: 4000.0, max_volume_cm3: 15000.0 }
+
+tracking:
+  method: "iou"
+  max_age: 30               # frames a track survives without a detection
+  min_hits: 3               # detections needed before a pothole is confirmed/persisted
+  iou_threshold: 0.30
+  position_tolerance_m: 0.5
+
+persistence:
+  # Backend that is the source of truth.
+  backend_url: "http://localhost:5002"
+  # One evidence image is saved per CONFIRMED pothole, not per frame.
+  evidence_image_dir: "../backend/uploads/potholes"
+  drone_id: "DRONE-PUNE-01"
+  # Physical pothole identity: the SAME physical pothole maps to ONE persistent
+  # DB record (P001...) even when the IoU tracker re-creates transient track ids,
+  # GPS flickers, or the AI restarts mid-session. This config is also sent to the
+  # backend so both layers deduplicate identically.
+  physical_dedup:
+    enabled: true
+    # GPS-anchor dedup: two detections within this many metres of an
+    # already-persisted pothole (in the current inspection) are the same physical
+    # pothole. Intended value: 0.5 m.
+    position_tolerance_m: 0.5
+    # Image-space fallback (only when GPS is unavailable/stale): bbox IoU that
+    # must be exceeded against a recently-persisted pothole to associate.
+    bbox_fallback_iou_threshold: 0.7
+    # How recent a persisted pothole must be to qualify for the bbox fallback
+    # (seconds). Scoped to the CURRENT inspection session: a session-long window
+    # guarantees the same physical pothole maps to ONE record even when the IoU
+    # tracker re-creates its transient track id or the AI engine restarts mid-session
+    # (which previously produced duplicate Pxxx rows for the same bbox/GPS).
+    # The high IoU threshold (>= 0.7) prevents distinct potholes from merging.
+    bbox_fallback_window_s: 7200.0
+
+live:
+  push_interval_s: 1.0      # how often live view is pushed to the backend
+  asset_name: "Nagar Road Highway Corridor (Point A to Point B)"
+  asset_type: "road"
+  location_name: "Pune Nagar Road, Maharashtra"
+  inspector: "Autonomous Inspection System"
+
+logging:
+  level: "INFO"
+  file: "ai_engine.log"

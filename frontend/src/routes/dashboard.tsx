@@ -1,14 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutGrid,
-  Route as RouteIcon,
   Bell,
   Search,
   Settings,
   BarChart3,
-  Layers,
   Plus,
   Minus,
   Maximize,
@@ -16,13 +14,28 @@ import {
   MoreHorizontal,
   Radio,
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
   Package,
   LogOut,
   MapPin,
-  Satellite,
+  FileDown,
+  CalendarCheck,
+  Wrench,
+  Calculator,
 } from "lucide-react";
 import cityMap from "@/assets/city-map.jpg";
+import {
+  API_BASE,
+  fetchDashboard,
+  fetchDrones,
+  fetchPotholes,
+  type DashboardData,
+  type Drone,
+  type Inspection,
+  type Pothole,
+} from "@/lib/api";
+import { formatINR, formatTimeAgo, severityStyle, droneStatusText, projectGPS } from "@/lib/format";
 
 const title = "Overview — RX pothole detection platform";
 const description =
@@ -46,71 +59,16 @@ const ease = [0.16, 1, 0.3, 1] as const;
 
 const railLinks = [
   { icon: LayoutGrid, to: "/dashboard" as const, label: "Overview" },
-  { icon: Satellite, to: "/tracking" as const, label: "GPS Tracking" },
-  { icon: MapPin, to: "/cost-estimator" as const, label: "Cost Estimator" },
-  { icon: Layers, to: "/dashboard" as const, label: "Layers" },
-  { icon: BarChart3, to: "/dashboard" as const, label: "Analytics" },
+  { icon: CalendarCheck, to: "/inspections" as const, label: "Inspections" },
+  { icon: MapPin, to: "/map" as const, label: "Map" },
+  { icon: Wrench, to: "/defects" as const, label: "Defects & Repairs" },
+  { icon: BarChart3, to: "/reports" as const, label: "Reports" },
   { icon: Settings, to: "/dashboard" as const, label: "Settings" },
+  { icon: Radio, to: "/live" as const, label: "Live AI View" },
+  { icon: Calculator, to: "/cost-estimator" as const, label: "Cost Estimator" },
 ];
 
 const layers = ["View all", "Aerial", "Road damage", "Weather", "Survey drones", "No-Fly zones"];
-
-const stats = [
-  { label: "Active Survey Drones", value: "28", suffix: "/34" },
-  { label: "Potholes Detected", value: "14" },
-  { label: "Avg. Scan Time", value: "18.4", suffix: "min" },
-  { label: "Detection Accuracy", value: "96.2", suffix: "%" },
-];
-
-const drones = [
-  { id: "SR-1149-4579", status: "Scanning", tone: "muted" },
-  { id: "SR-0968-1593", status: "Scanning", tone: "muted" },
-  { id: "SR-4367-1665", status: "Deviation", tone: "warn" },
-  { id: "SR-0238-3464", status: "Idle", tone: "muted" },
-];
-
-const routes = [
-  { id: "INS-4470", status: "On time", tone: "muted" },
-  { id: "INS-4468", status: "+4 min", tone: "warn" },
-  { id: "INS-4462", status: "Complete", tone: "ok" },
-  { id: "INS-4459", status: "On time", tone: "muted" },
-];
-
-const notifications = [
-  {
-    icon: CheckCircle2,
-    tone: "ok" as const,
-    title: "SR-076 severe pothole found on Hwy 101",
-    body: "Depth: 15cm — auto-flagged for repair",
-    time: "11:00 AM",
-  },
-  {
-    icon: AlertTriangle,
-    tone: "warn" as const,
-    title: "SR-121 battery below threshold",
-    body: "Rerouting to nearest charging station CP-02",
-    time: "10:20 AM",
-  },
-  {
-    icon: Package,
-    tone: "muted" as const,
-    title: "Scan INS-4462 completed — 7 potholes found",
-    body: "Repair estimate: ₹34,200",
-    time: "8:30 AM",
-  },
-];
-
-const droneMarkers = [
-  { top: "26%", left: "22%", label: "AD 1140-1245", delay: 0 },
-  { top: "44%", left: "12%", label: "AD 1149-4579", delay: 0.6 },
-  { top: "22%", left: "72%", label: "AD-4575-4098", delay: 1.2 },
-];
-
-const alerts = [
-  { top: "58%", left: "34%" },
-  { top: "38%", left: "52%" },
-  { top: "50%", left: "74%" },
-];
 
 function toneClass(tone: string) {
   if (tone === "warn") return "text-destructive";
@@ -131,14 +89,197 @@ function DroneGlyph({ size = 26 }: { size?: number }) {
   );
 }
 
+type GpsPoint = { lat: number | null; lng: number | null };
+
+function shortId(id: string | null | undefined): string {
+  if (!id) return "—";
+  if (id.startsWith("INS-")) return id;
+  return id.slice(0, 8).toUpperCase();
+}
+
+function inspectionTone(status: string | null | undefined): string {
+  switch ((status ?? "").toUpperCase()) {
+    case "RESOLVED":
+      return "ok";
+    case "FAILED":
+    case "ERROR":
+      return "warn";
+    default:
+      return "muted";
+  }
+}
+
+function inspectionStatus(status: string | null | undefined): string {
+  switch ((status ?? "").toUpperCase()) {
+    case "RESOLVED":
+      return "Resolved";
+    case "COMPLETED":
+      return "Complete";
+    case "FAILED":
+    case "ERROR":
+      return "Failed";
+    case "IN_PROGRESS":
+      return "Running";
+    default:
+      return status ?? "—";
+  }
+}
+
+function potholeTone(severity: string | null | undefined): string {
+  switch ((severity ?? "").toUpperCase()) {
+    case "CRITICAL":
+    case "HIGH":
+      return "warn";
+    case "MEDIUM":
+    case "LOW":
+      return "ok";
+    default:
+      return "muted";
+  }
+}
+
+type NotificationItem = {
+  icon: typeof CheckCircle2;
+  tone: "ok" | "warn" | "muted";
+  title: string;
+  body: string;
+  time: string;
+};
+
+function buildNotifications(inspections: Inspection[]): NotificationItem[] {
+  const items: NotificationItem[] = [];
+  for (const insp of inspections) {
+    const potholes = insp.potholes ?? [];
+    if (!potholes.length) continue;
+    const critical = potholes.find((p) => (p.severity ?? "").toUpperCase() === "CRITICAL");
+    const high = critical
+      ? undefined
+      : potholes.find((p) => (p.severity ?? "").toUpperCase() === "HIGH");
+    const totalEst = potholes.reduce(
+      (sum, p) => sum + (p.estimatedCost ?? p.totalRepairCost ?? 0),
+      0,
+    );
+    const place = insp.locationName ?? insp.assetName ?? "road section";
+
+    if (critical) {
+      items.push({
+        icon: AlertTriangle,
+        tone: "warn",
+        title: `${critical.potholeId ?? "Pothole"} · critical pothole on ${place}`,
+        body: `Est. repair ${formatINR(totalEst)} — auto-flagged for repair`,
+        time: formatTimeAgo(insp.timestamp),
+      });
+    } else if (high) {
+      items.push({
+        icon: AlertTriangle,
+        tone: "warn",
+        title: `${high.potholeId ?? "Pothole"} · high-risk pothole on ${place}`,
+        body: `Est. repair ${formatINR(totalEst)} — flagged for repair`,
+        time: formatTimeAgo(insp.timestamp),
+      });
+    } else {
+      items.push({
+        icon: Package,
+        tone: "ok",
+        title: `Scan ${shortId(insp.legacyId)} completed — ${potholes.length} pothole${potholes.length === 1 ? "" : "s"} found`,
+        body: `Repair estimate ${formatINR(totalEst)}`,
+        time: formatTimeAgo(insp.timestamp),
+      });
+    }
+  }
+  if (!items.length) {
+    items.push({
+      icon: CheckCircle2,
+      tone: "muted",
+      title: "No detections yet",
+      body: "Notifications appear when surveys detect potholes.",
+      time: "",
+    });
+  }
+  return items.slice(0, 3);
+}
+
 function Dashboard() {
   const [layer, setLayer] = useState(0);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [drones, setDrones] = useState<Drone[]>([]);
+  const [potholes, setPotholes] = useState<Pothole[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled([fetchDashboard(), fetchDrones(), fetchPotholes()]).then((results) => {
+      if (cancelled) return;
+      const [dash, dr, poth] = results;
+      if (dash.status === "fulfilled") setData(dash.value.data);
+      if (dr.status === "fulfilled") setDrones(dr.value.data);
+      if (poth.status === "fulfilled") setPotholes(poth.value.data);
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        setError(
+          failed
+            .map((f) => (f.status === "rejected" ? (f.reason as Error).message : ""))
+            .join("; "),
+        );
+      }
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const summary = data?.summary;
+  const fleet = data?.fleet;
+  const recentInspections = data?.recentInspections ?? [];
+  const activeDrones = fleet?.activeDrones ?? drones.filter((d) => d.status === "FLYING").length;
+  const totalDrones = fleet?.totalDrones ?? drones.length;
+
+  const stats = [
+    {
+      label: "Active Survey Drones",
+      value: loading ? "—" : String(activeDrones),
+      suffix: totalDrones ? `/${totalDrones}` : "",
+    },
+    { label: "Potholes Detected", value: loading ? "—" : String(potholes.length) },
+    { label: "Total Inspections", value: loading ? "—" : String(summary?.totalInspections ?? 0) },
+    {
+      label: "Repair Budget",
+      value: loading ? "—" : formatINR(summary?.totalEstimatedBudget ?? 0),
+      suffix: "",
+    },
+  ];
+
+  const dronePoints = drones
+    .filter((d) => d.lat != null && d.lng != null)
+    .map((d) => ({ lat: d.lat, lng: d.lng }));
+  const potholePoints = potholes.map((p) => ({
+    lat: p.inspection?.latitude ?? null,
+    lng: p.inspection?.longitude ?? null,
+  }));
+  const project = projectGPS([...potholePoints, ...dronePoints]);
+
+  // Group pothole markers by exact GPS so overlapping detections stack as one point.
+  const potholeMarkers = new Map<string, Pothole[]>();
+  for (const p of potholes) {
+    const lat = p.inspection?.latitude;
+    const lng = p.inspection?.longitude;
+    if (lat == null || lng == null) continue;
+    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+    const bucket = potholeMarkers.get(key);
+    if (bucket) bucket.push(p);
+    else potholeMarkers.set(key, [p]);
+  }
+
+  const notifications = buildNotifications(recentInspections);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-8 md:py-10">
         {/* frame labels, like the reference deck */}
-        <div className="mb-4 flex items-center justify-between text-[11px] text-muted-foreground">              <span>
+        <div className="mb-4 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>
             pothole <span className="text-subtle">detection</span>
           </span>
           <span className="text-right">
@@ -148,6 +289,13 @@ function Dashboard() {
           </span>
         </div>
 
+        {error && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+            <AlertTriangle size={13} />
+            Backend unavailable at {API_BASE} — showing cached/unavailable state. {error}
+          </div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -156,6 +304,12 @@ function Dashboard() {
         >
           {/* top bar */}
           <div className="flex items-center gap-3 border-b border-border px-4 py-3 md:px-5">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm text-subtle transition-colors hover:text-foreground"
+            >
+              <ArrowLeft size={14} /> Back to home
+            </Link>
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <DroneGlyph size={18} />
             </span>
@@ -167,12 +321,23 @@ function Dashboard() {
             </div>
 
             <div className="ml-auto flex items-center gap-2 md:ml-0">
+              <a
+                href={`${API_BASE}/api/reports/full`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex size-8 items-center justify-center gap-2 rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+                title="Download full audit report (PDF)"
+              >
+                <FileDown size={14} />
+              </a>
               <button className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground">
                 <Radio size={14} />
               </button>
               <button className="relative flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground">
                 <Bell size={14} />
-                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-destructive" />
+                {potholes.some((p) => (p.severity ?? "").toUpperCase() === "CRITICAL") && (
+                  <span className="absolute top-1 right-1 size-1.5 rounded-full bg-destructive" />
+                )}
               </button>
               <span className="flex size-8 items-center justify-center rounded-lg bg-elevated text-[10px] font-medium">
                 JD
@@ -204,7 +369,9 @@ function Dashboard() {
                   <item.icon size={16} />
                 </Link>
               ))}
-              <span className="mt-2 text-[9px] text-subtle">PH-1593</span>
+              {potholes.length > 0 && (
+                <span className="mt-2 text-[9px] text-subtle">{potholes[0]?.potholeId ?? "—"}</span>
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
@@ -213,47 +380,72 @@ function Dashboard() {
                 <img
                   src={cityMap}
                   width={1600}
-                  height={1008}                    alt="Isometric city map of the active road scanning zone"
+                  height={1008}
+                  alt="Isometric city map of the active road scanning zone"
                   className="size-full object-cover"
                 />
 
-                {/* no-fly hatch zones */}
-                {alerts.map((a, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.6, delay: 0.4 + i * 0.15, ease }}
-                    style={{ top: a.top, left: a.left }}
-                    className="absolute -translate-x-1/2"
-                  >
-                    <div className="flex size-6 items-center justify-center rounded-sm bg-destructive/15">
-                      <AlertTriangle size={13} className="text-destructive" />
-                    </div>
-                    <div className="mt-0.5 h-1.5 w-16 -translate-x-1/4 rotate-[18deg] bg-[repeating-linear-gradient(45deg,color-mix(in_oklab,var(--destructive)_45%,transparent)_0_3px,transparent_3px_6px)]" />
-                  </motion.div>
-                ))}
+                {/* pothole markers from real GPS */}
+                {[...potholeMarkers.entries()].map(([key, group]) => {
+                  const pos = project({
+                    lat: group[0]?.inspection?.latitude ?? null,
+                    lng: group[0]?.inspection?.longitude ?? null,
+                  });
+                  if (!pos) return null;
+                  const style = severityStyle(group[0]?.severity);
+                  const hottest = group.reduce((a, b) =>
+                    (b.severity ?? "").toUpperCase() === "CRITICAL" ? b : a,
+                  );
+                  const hottestStyle = severityStyle(hottest.severity);
+                  return (
+                    <motion.div
+                      key={key}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.6, ease }}
+                      style={{ top: pos.top, left: pos.left }}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                    >
+                      <div
+                        className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium ${hottestStyle.bg} ${hottestStyle.text}`}
+                      >
+                        <MapPin size={9} />
+                        <span>
+                          {group.length > 1 ? `${group.length}×` : ""}
+                          {group[0]?.potholeId ?? "detection"}
+                        </span>
+                        <span className="opacity-70">{style.label}</span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
 
-                {/* drones */}
-                {droneMarkers.map((d) => (
-                  <motion.div
-                    key={d.label}
-                    style={{ top: d.top, left: d.left }}
-                    className="absolute"
-                    animate={{ y: [0, -7, 0] }}
-                    transition={{
-                      duration: 3.4,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: d.delay,
-                    }}
-                  >
-                    <span className="absolute -top-4 left-0 whitespace-nowrap text-[9px] text-muted-foreground">
-                      {d.label}
-                    </span>
-                    <DroneGlyph />
-                  </motion.div>
-                ))}
+                {/* drone markers from real fleet GPS */}
+                {drones
+                  .filter((d) => d.lat != null && d.lng != null)
+                  .map((d, i) => {
+                    const pos = project({ lat: d.lat, lng: d.lng });
+                    if (!pos) return null;
+                    return (
+                      <motion.div
+                        key={d.id}
+                        style={{ top: pos.top, left: pos.left }}
+                        className="absolute"
+                        animate={{ y: [0, -7, 0] }}
+                        transition={{
+                          duration: 3.4,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: i * 0.6,
+                        }}
+                      >
+                        <span className="absolute -top-4 left-0 whitespace-nowrap text-[9px] text-muted-foreground">
+                          {d.name}
+                        </span>
+                        <DroneGlyph />
+                      </motion.div>
+                    );
+                  })}
 
                 {/* layers panel */}
                 <div className="absolute top-4 right-4 w-36 rounded-xl border border-border bg-card/95 p-1.5 backdrop-blur">
@@ -316,17 +508,57 @@ function Dashboard() {
                 </div>
 
                 {/* drones list */}
-                <Panel title="Survey Drones" meta="26 online">
-                  {drones.map((d) => (
-                    <Row key={d.id} left={d.id} right={d.status} tone={d.tone} />
-                  ))}
+                <Panel
+                  title="Survey Drones"
+                  meta={
+                    loading ? "…" : `${drones.filter((d) => d.status === "FLYING").length} flying`
+                  }
+                >
+                  {drones.length ? (
+                    drones
+                      .slice(0, 8)
+                      .map((d) => (
+                        <Row
+                          key={d.id}
+                          left={d.name}
+                          right={
+                            d.status === "FLYING"
+                              ? droneStatusText(d.status)
+                              : droneStatusText(d.status)
+                          }
+                          tone={
+                            d.status === "FLYING"
+                              ? "ok"
+                              : d.batteryPercent != null && d.batteryPercent < 30
+                                ? "warn"
+                                : "muted"
+                          }
+                        />
+                      ))
+                  ) : (
+                    <EmptyRow text={loading ? "Loading drones…" : "No drones registered"} />
+                  )}
                 </Panel>
 
                 {/* routes */}
-                <Panel title="Active Inspections" meta="6 today">
-                  {routes.map((r) => (
-                    <Row key={r.id} left={r.id} right={r.status} tone={r.tone} />
-                  ))}
+                <Panel
+                  title="Recent Inspections"
+                  meta={loading ? "…" : `${recentInspections.length} recorded`}
+                >
+                  {recentInspections.length ? (
+                    recentInspections
+                      .slice(0, 6)
+                      .map((r) => (
+                        <Row
+                          key={r.id}
+                          left={r.legacyId ?? shortId(r.id)}
+                          right={inspectionStatus(r.status)}
+                          tone={inspectionTone(r.status)}
+                        />
+                      ))
+                  ) : (
+                    <EmptyRow text={loading ? "Loading inspections…" : "No inspections yet"} />
+                  )}
                 </Panel>
 
                 {/* notifications */}
@@ -353,7 +585,11 @@ function Dashboard() {
                           <p className="text-[11px] leading-snug">{n.title}</p>
                           <p className="text-[10px] text-muted-foreground">{n.body}</p>
                         </div>
-                        <span className="shrink-0 text-[9px] text-muted-foreground">{n.time}</span>
+                        {n.time && (
+                          <span className="shrink-0 text-[9px] text-muted-foreground">
+                            {n.time}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -406,6 +642,15 @@ function Row({ left, right, tone }: { left: string; right: string; tone: string 
         <span className="size-1 rounded-full bg-current" />
         {right}
       </span>
+    </li>
+  );
+}
+
+function EmptyRow({ text }: { text: string }) {
+  return (
+    <li className="py-1 text-[11px] text-muted-foreground">
+      <span className="mr-1.5 inline-block size-1 rounded-full bg-border-strong" />
+      {text}
     </li>
   );
 }

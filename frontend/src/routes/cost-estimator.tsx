@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { useState } from "react";
-import { Nav } from "@/components/rx/Nav";
-import { Footer } from "@/components/rx/Footer";
+import { useEffect, useState } from "react";
+import { AppNav } from "@/components/rx/AppNav";
+import { AppFooter } from "@/components/rx/AppFooter";
 import {
   ArrowLeft,
   Calculator,
@@ -11,11 +11,14 @@ import {
   Wrench,
   AlertTriangle,
   CheckCircle2,
+  FileDown,
 } from "lucide-react";
+import { API_BASE, fetchPotholes, type Pothole } from "@/lib/api";
+import { formatTimeAgo, severityStyle } from "@/lib/format";
 
 const title = "Pothole Repair Cost Estimator — India | RX";
 const description =
-  "Estimate pothole repair costs for Indian roads — highways, state roads, city roads, and rural roads. Prices in INR based on IRC & PMGSY standards.";
+  "Plan rough pothole repair costs for Indian roads using an interactive estimator. Reference planning rates only — actual stored repair costs from the AI pipeline are shown below.";
 
 export const Route = createFileRoute("/cost-estimator")({
   head: () => ({
@@ -126,13 +129,6 @@ const potholeSizes: PotholeSize[] = [
   { label: "Very Large — > 3 m²", area: 4.5 },
 ];
 
-const recentEstimates = [
-  { id: "EST-2847", road: "NH-48 — Pune–Mumbai stretch", potholes: 3, total: "₹14,200", date: "Today", method: "Hot Mix Asphalt" },
-  { id: "EST-2846", road: "SV Road — Andheri West, Mumbai", potholes: 7, total: "₹8,740", date: "Yesterday", method: "Cold Mix Patch" },
-  { id: "EST-2845", road: "JNPT Access Road — Navi Mumbai", potholes: 5, total: "₹22,100", date: "2 days ago", method: "Bituminous Overlay" },
-  { id: "EST-2844", road: "PMGSY Road — Raigad District", potholes: 12, total: "₹6,480", date: "3 days ago", method: "WBM Patch" },
-];
-
 function formatINR(amount: number): string {
   if (amount >= 100000) {
     return "₹" + (amount / 100000).toFixed(2) + " L";
@@ -140,21 +136,49 @@ function formatINR(amount: number): string {
   return "₹" + amount.toLocaleString("en-IN");
 }
 
+type EstimateRow = Pothole & { estimate: number };
+
 function CostEstimator() {
   const [selectedRoad, setSelectedRoad] = useState(0);
   const [selectedSeverity, setSelectedSeverity] = useState(1);
   const [selectedSize, setSelectedSize] = useState(1);
+  const [estimates, setEstimates] = useState<EstimateRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const road = roadTypes[selectedRoad];
-  const severity = severityLevels[selectedSeverity];
-  const size = potholeSizes[selectedSize];
+  useEffect(() => {
+    let cancelled = false;
+    fetchPotholes()
+      .then((res) => {
+        if (cancelled) return;
+        setEstimates(
+          res.data
+            .map((p) => ({ ...p, estimate: p.totalRepairCost ?? p.estimatedCost ?? 0 }))
+            .filter((p) => p.estimate > 0)
+            .slice(0, 6),
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) setError((err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const road = roadTypes[selectedRoad] ?? roadTypes[0]!;
+  const severity = severityLevels[selectedSeverity] ?? severityLevels[1]!;
+  const size = potholeSizes[selectedSize] ?? potholeSizes[1]!;
 
   const baseRepairCost = road.baseCost + road.costPerSqm * size.area;
   const severityAdjusted = Math.round(baseRepairCost * severity.multiplier);
 
   return (
     <div className="min-h-screen bg-background">
-      <Nav />
+      <AppNav />
       <main className="pt-28 pb-16">
         {/* Header */}
         <section className="mx-auto max-w-[1400px] px-5 md:px-8">
@@ -177,11 +201,22 @@ function CostEstimator() {
               <span className="text-primary">Cost Estimator</span>
             </h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-subtle">
-              Select road type, pothole severity, and size to get an instant repair cost
-              estimate in Indian Rupees. Prices based on IRC SP:83 & PMGSY norms.
+              Choose a road type, pothole severity, and size to get a rough planning figure in
+              Indian Rupees. The numbers below are reference planning rates — they are not actual
+              repair costs and are not quotes from any standards body. Real stored repair costs
+              recorded by the AI pipeline are listed under "Recent Estimates".
             </p>
           </motion.div>
         </section>
+
+        {error && (
+          <section className="mx-auto max-w-[1400px] px-5 pt-6 md:px-8">
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+              <AlertTriangle size={13} />
+              Backend unavailable — estimates from previous detections unavailable. {error}
+            </div>
+          </section>
+        )}
 
         <section className="mx-auto max-w-[1400px] px-5 md:px-8">
           <div className="mt-14 grid gap-8 md:grid-cols-[1fr_380px] md:gap-12">
@@ -203,9 +238,7 @@ function CostEstimator() {
                       key={r.id}
                       onClick={() => setSelectedRoad(i)}
                       className={`card-panel flex flex-col items-start gap-2 p-4 text-left transition-all ${
-                        i === selectedRoad
-                          ? "border-primary/60 ring-1 ring-primary/30"
-                          : ""
+                        i === selectedRoad ? "border-primary/60 ring-1 ring-primary/30" : ""
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -238,9 +271,7 @@ function CostEstimator() {
                       key={s.label}
                       onClick={() => setSelectedSeverity(i)}
                       className={`card-panel flex flex-col gap-2 p-4 text-left transition-all ${
-                        i === selectedSeverity
-                          ? "border-primary/60 ring-1 ring-primary/30"
-                          : ""
+                        i === selectedSeverity ? "border-primary/60 ring-1 ring-primary/30" : ""
                       }`}
                     >
                       <span className={`text-sm font-medium ${s.color}`}>{s.label}</span>
@@ -269,9 +300,7 @@ function CostEstimator() {
                       key={s.label}
                       onClick={() => setSelectedSize(i)}
                       className={`card-panel flex flex-col gap-2 p-4 text-left transition-all ${
-                        i === selectedSize
-                          ? "border-primary/60 ring-1 ring-primary/30"
-                          : ""
+                        i === selectedSize ? "border-primary/60 ring-1 ring-primary/30" : ""
                       }`}
                     >
                       <span className="text-sm font-medium">{s.label}</span>
@@ -293,13 +322,14 @@ function CostEstimator() {
                   {selectedSeverity <= 0
                     ? "Cold mix patch repair — suitable for minor surface cracks. Quick fix, low cost."
                     : selectedSeverity === 1
-                    ? "Hot mix asphalt (as per IRC SP:83) — recommended for moderate potholes. Durable 2–3 year fix."
-                    : selectedSeverity === 2
-                    ? "Bituminous overlay with tack coat — deep repair for severe damage. May need base re-compaction."
-                    : "Full-depth reclamation with WBM base + bituminous surface — critical structural repair required."}
+                      ? "Hot mix asphalt patching — recommended for moderate potholes. Durable 2–3 year fix."
+                      : selectedSeverity === 2
+                        ? "Bituminous overlay with tack coat — deep repair for severe damage. May need base re-compaction."
+                        : "Full-depth reclamation with WBM base + bituminous surface — critical structural repair required."}
                 </p>
                 <p className="mt-2 text-[11px] text-subtle/60">
-                  Based on Indian Roads Congress (IRC) guidelines for {road.name.toLowerCase()} conditions.
+                  General repair guidance for {road.name.toLowerCase()} conditions. This is a
+                  planning note, not a stored cost from the pipeline.
                 </p>
               </motion.div>
             </div>
@@ -313,11 +343,14 @@ function CostEstimator() {
                 className="card-panel-active overflow-hidden rounded-2xl"
               >
                 <div className="border-b border-primary/20 bg-primary/10 p-6">
-                  <h3 className="text-sm font-medium text-primary">Estimated Repair Cost</h3>
+                  <h3 className="text-sm font-medium text-primary">Planning Estimate</h3>
+                  <p className="mt-1 text-xs text-primary/70">
+                    Reference calculation — not an actual stored repair cost
+                  </p>
                   <p className="mt-2 display text-4xl text-primary md:text-5xl">
                     {formatINR(severityAdjusted)}
                   </p>
-                  <p className="mt-1 text-xs text-primary/70">per pothole</p>
+                  <p className="mt-1 text-xs text-primary/70">per pothole (reference inputs)</p>
                 </div>
 
                 <div className="space-y-3 p-6">
@@ -327,7 +360,9 @@ function CostEstimator() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-subtle">Severity</span>
-                    <span>{severity.label} (×{severity.multiplier})</span>
+                    <span>
+                      {severity.label} (×{severity.multiplier})
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-subtle">Pothole size</span>
@@ -358,12 +393,18 @@ function CostEstimator() {
                 </div>
 
                 <div className="border-t border-border p-6">
-                  <button className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5">
-                    Export Estimate as PDF
-                  </button>
+                  <a
+                    href={`${API_BASE}/api/reports/full`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5"
+                  >
+                    <FileDown size={15} />
+                    Download Full Audit Report (PDF)
+                  </a>
                   <p className="mt-3 flex items-center gap-1 text-center text-[11px] text-subtle">
                     <Info size={12} />
-                    Includes materials (bitumen, aggregate) + labor + equipment as per IRC rates
+                    PDF built from real stored detections and their saved repair costs
                   </p>
                 </div>
               </motion.div>
@@ -375,19 +416,24 @@ function CostEstimator() {
                 transition={{ duration: 0.7, delay: 0.5, ease }}
                 className="card-panel mt-4 p-5"
               >
-                <h4 className="text-xs font-medium text-subtle">Government Reference Rates</h4>
-                <ul className="mt-2 space-y-1.5 text-[11px] text-subtle/70">
-                  <li>• IRC SP:83 — Patch repair for flexible roads</li>
-                  <li>• PMGSY norms — rural road maintenance</li>
-                  <li>• NHAI schedule rates 2024–25</li>
-                  <li>• BMC ward-level pothole repair avg: ₹500–₹1,500/m²</li>
+                <h4 className="text-xs font-medium text-subtle">Reference planning rates</h4>
+                <p className="mt-2 text-[11px] text-subtle/70">
+                  The base and per-m² values used above are illustrative planning inputs for rough
+                  budgeting. They are not sourced from a specific government rate card and are not
+                  quotes. They are only used to give a planning figure — the actual repair costs
+                  stored by the AI pipeline are shown in Recent Estimates below.
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-[11px] text-subtle/70">
+                  <li>Base cost reflects typical bituminous patch repair complexity</li>
+                  <li>Per-m² rate scales the estimate with pothole area</li>
+                  <li>Severity multiplier adjusts for repair depth</li>
                 </ul>
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* Recent Estimates */}
+        {/* Recent Estimates — real backend detections */}
         <section className="mx-auto max-w-[1400px] px-5 py-20 md:px-8">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -398,33 +444,56 @@ function CostEstimator() {
           >
             Recent Estimates
           </motion.h2>
+          <p className="mt-3 max-w-lg text-sm text-subtle">
+            Repair estimates from detected potholes recorded by the AI pipeline.
+          </p>
 
           <div className="mt-8 space-y-3">
-            {recentEstimates.map((e, i) => (
-              <motion.div
-                key={e.id}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.08, ease }}
-                className="card-panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-primary">{e.id}</span>
-                  <div>
-                    <p className="text-sm font-medium">{e.road}</p>
-                    <p className="text-xs text-subtle">
-                      {e.potholes} potholes • {e.method} • {e.date}
-                    </p>
-                  </div>
-                </div>
-                <span className="display text-lg text-primary">{e.total}</span>
-              </motion.div>
-            ))}
+            {estimates.length ? (
+              estimates.map((e, i) => {
+                const style = severityStyle(e.severity);
+                return (
+                  <motion.div
+                    key={e.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: i * 0.08, ease }}
+                    className="card-panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-primary">
+                        {e.potholeId ?? e.id.slice(0, 8)}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {e.inspection?.locationName ?? e.inspection?.assetName ?? "Road section"}
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-2 text-xs text-subtle">
+                          <span className={`size-1.5 rounded-full ${style.dot}`} />
+                          {style.label} •{" "}
+                          {e.depthM != null ? `${(e.depthM * 100).toFixed(0)}cm` : "—"} •
+                          {e.areaM2 != null ? ` ${e.areaM2.toFixed(2)} m²` : "—"} •{" "}
+                          {formatTimeAgo(e.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="display text-lg text-primary">{formatINR(e.estimate)}</span>
+                  </motion.div>
+                );
+              })
+            ) : (
+              <div className="card-panel flex items-center gap-2 p-5 text-sm text-subtle">
+                <CheckCircle2 size={14} />
+                {loading
+                  ? "Loading estimates…"
+                  : "No repairs estimated yet — detections with cost data will appear here."}
+              </div>
+            )}
           </div>
         </section>
       </main>
-      <Footer />
+      <AppFooter />
     </div>
   );
 }

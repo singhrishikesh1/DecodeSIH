@@ -12,7 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CostEstimatorRouteImport } from './routes/cost-estimator'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as TrackingRouteImport } from './routes/tracking'
+import { Route as DefectsRouteImport } from './routes/defects'
+import { Route as InspectionsRouteImport } from './routes/inspections'
+import { Route as LiveRouteImport } from './routes/live'
+import { Route as MapRouteImport } from './routes/map'
+import { Route as ReportsRouteImport } from './routes/reports'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,9 +33,29 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TrackingRoute = TrackingRouteImport.update({
-  id: '/tracking',
-  path: '/tracking',
+const DefectsRoute = DefectsRouteImport.update({
+  id: '/defects',
+  path: '/defects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InspectionsRoute = InspectionsRouteImport.update({
+  id: '/inspections',
+  path: '/inspections',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -39,34 +63,75 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cost-estimator': typeof CostEstimatorRoute
   '/dashboard': typeof DashboardRoute
-  '/tracking': typeof TrackingRoute
+  '/defects': typeof DefectsRoute
+  '/inspections': typeof InspectionsRoute
+  '/live': typeof LiveRoute
+  '/map': typeof MapRoute
+  '/reports': typeof ReportsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cost-estimator': typeof CostEstimatorRoute
   '/dashboard': typeof DashboardRoute
-  '/tracking': typeof TrackingRoute
+  '/defects': typeof DefectsRoute
+  '/inspections': typeof InspectionsRoute
+  '/live': typeof LiveRoute
+  '/map': typeof MapRoute
+  '/reports': typeof ReportsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cost-estimator': typeof CostEstimatorRoute
   '/dashboard': typeof DashboardRoute
-  '/tracking': typeof TrackingRoute
+  '/defects': typeof DefectsRoute
+  '/inspections': typeof InspectionsRoute
+  '/live': typeof LiveRoute
+  '/map': typeof MapRoute
+  '/reports': typeof ReportsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cost-estimator' | '/dashboard' | '/tracking'
+  fullPaths:
+    | '/'
+    | '/cost-estimator'
+    | '/dashboard'
+    | '/defects'
+    | '/inspections'
+    | '/live'
+    | '/map'
+    | '/reports'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cost-estimator' | '/dashboard' | '/tracking'
-  id: '__root__' | '/' | '/cost-estimator' | '/dashboard' | '/tracking'
+  to:
+    | '/'
+    | '/cost-estimator'
+    | '/dashboard'
+    | '/defects'
+    | '/inspections'
+    | '/live'
+    | '/map'
+    | '/reports'
+  id:
+    | '__root__'
+    | '/'
+    | '/cost-estimator'
+    | '/dashboard'
+    | '/defects'
+    | '/inspections'
+    | '/live'
+    | '/map'
+    | '/reports'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CostEstimatorRoute: typeof CostEstimatorRoute
   DashboardRoute: typeof DashboardRoute
-  TrackingRoute: typeof TrackingRoute
+  DefectsRoute: typeof DefectsRoute
+  InspectionsRoute: typeof InspectionsRoute
+  LiveRoute: typeof LiveRoute
+  MapRoute: typeof MapRoute
+  ReportsRoute: typeof ReportsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,11 +157,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tracking': {
-      id: '/tracking'
-      path: '/tracking'
-      fullPath: '/tracking'
-      preLoaderRoute: typeof TrackingRouteImport
+    '/defects': {
+      id: '/defects'
+      path: '/defects'
+      fullPath: '/defects'
+      preLoaderRoute: typeof DefectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inspections': {
+      id: '/inspections'
+      path: '/inspections'
+      fullPath: '/inspections'
+      preLoaderRoute: typeof InspectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -106,7 +199,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CostEstimatorRoute: CostEstimatorRoute,
   DashboardRoute: DashboardRoute,
-  TrackingRoute: TrackingRoute,
+  DefectsRoute: DefectsRoute,
+  InspectionsRoute: InspectionsRoute,
+  LiveRoute: LiveRoute,
+  MapRoute: MapRoute,
+  ReportsRoute: ReportsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
