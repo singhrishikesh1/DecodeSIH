@@ -133,6 +133,25 @@ model Pothole {
   // Image association (actual saved pothole image)
   imagePath        String?  @map("image_path")
 
+  // Cost estimator selection (road/material/repair) + linked persisted estimate
+  roadMaterial     String?  @map("road_material")
+  roadType         String?  @map("road_type")
+  repairMethod     String?  @map("repair_method")
+  regionState      String?  @map("region_state")
+  regionCity       String?  @map("region_city")
+  roadAuthority    String?  @map("road_authority")
+  costEstimateId   String?  @map("cost_estimate_id")
+  avgDepthCm       Float?   @map("avg_depth_cm")
+  maxDepthCm       Float?   @map("max_depth_cm")
+
+  // Live-pipeline persisted metadata (already present in DB)
+  measurementStatus String? @map("measurement_status")
+  severityBasis     String? @map("severity_basis")
+  severityStatus    String? @map("severity_status")
+  detectedAt        DateTime? @map("detected_at")
+  lidarStatus       String? @map("lidar_status")
+  costConfigId      String? @map("cost_config_id")
+
   // Legacy / internals
   estimatedCost    Float?   @map("estimated_cost")
   bbox             Json?
@@ -141,6 +160,7 @@ model Pothole {
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   inspection Inspection @relation(fields: [inspectionId], references: [id])
+  costEstimate CostEstimate?
 
   @@index([inspectionId])
   @@index([severity])
@@ -170,4 +190,79 @@ model CostConfig {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("cost_configs")
+}
+
+// ─── CostRate ───────────────────────────────────────────────────────────────
+// Regional, versioned rate catalog (material / labour / equipment / transport).
+// One row per rate line. Historical rows are kept via effective_from/effective_to.
+model CostRate {
+  id              String   @id
+  category        String // MATERIAL | LABOUR | EQUIPMENT | TRANSPORT
+  name            String
+  specification   String?
+  unit            String
+  rate            Float
+  currency        String   @default("INR")
+  state           String?
+  city            String?
+  authority       String? // NHAI | State PWD | Municipal | Market | National
+  source          String?
+  sourceReference String?  @map("source_reference")
+  effectiveFrom   DateTime? @map("effective_from")
+  effectiveTo     DateTime? @map("effective_to")
+  isActive        Boolean  @default(true) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([state, city])
+  @@index([name])
+  @@map("cost_rates")
+}
+
+// ─── CostEstimate ───────────────────────────────────────────────────────────
+// Persisted, reproducible engineering repair estimate for one pothole.
+// Stores the full rate snapshot + BOQ so an old estimate does not silently
+// change when the rate catalog is updated later.
+model CostEstimate {
+  id                String   @id @default(uuid())
+  potholeId         String?  @unique @map("pothole_id")
+  roadMaterial      String?  @map("road_material")
+  roadType          String?  @map("road_type")
+  repairMethod      String?  @map("repair_method")
+  regionState       String?  @map("region_state")
+  regionCity        String?  @map("region_city")
+  roadAuthority     String?  @map("road_authority")
+  geometry          Json?
+  rateSnapshot      Json?    @map("rate_snapshot")
+  ratesMaterials    Json?    @map("rates_materials")
+  ratesLabour       Json?    @map("rates_labour")
+  ratesEquipment    Json?    @map("rates_equipment")
+  ratesTransport    Json?    @map("rates_transport")
+  materials         Json?
+  labour            Json?
+  equipment         Json?
+  transport         Json?
+  materialSubtotal  Float?   @map("material_subtotal")
+  labourSubtotal    Float?   @map("labour_subtotal")
+  equipmentSubtotal Float?   @map("equipment_subtotal")
+  transportSubtotal Float?   @map("transport_subtotal")
+  allowance         Float?
+  subtotal          Float?
+  tax               Float?
+  contingency       Float?
+  total             Float?
+  currency          String   @default("INR")
+  rateSource        String?  @map("rate_source")
+  rateEffectiveDate String?  @map("rate_effective_date")
+  formula           Json?
+  calculationStatus String   @default("CALCULATED") @map("calculation_status")
+  calculatedAt      DateTime @default(now()) @map("calculated_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  pothole Pothole? @relation(fields: [potholeId], references: [id])
+
+  @@map("cost_estimates")
 }

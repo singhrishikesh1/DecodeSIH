@@ -64,10 +64,223 @@ export type Pothole = {
   requiredMaterials: unknown;
   imagePath: string | null;
   estimatedCost: number | null;
+  // Cost estimator: road/material/repair selection + validated measurements
+  roadMaterial?: string | null;
+  roadType?: string | null;
+  repairMethod?: string | null;
+  regionState?: string | null;
+  regionCity?: string | null;
+  roadAuthority?: string | null;
+  avgDepthCm?: number | null;
+  maxDepthCm?: number | null;
+  measurementStatus?: string | null;
   createdAt: string;
   updatedAt?: string;
   inspection?: Inspection | null;
 };
+
+// ── Cost Estimator API ───────────────────────────────────────────────────────
+
+export type CostPothole = {
+  id: string;
+  potholeId: string | null;
+  defectClass: string;
+  confidence: number | null;
+  createdAt: string;
+  imagePath: string | null;
+  gpsAvailable: boolean;
+  gpsStatus: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
+  severity: string | null;
+  measurementStatus: string;
+  measuredVolumeM3: number | null;
+  measuredAreaM2: number | null;
+  measuredDepthCM: number | null;
+  volumeM3: number | null;
+  areaM2: number | null;
+  depthM: number | null;
+  lengthM: number | null;
+  widthM: number | null;
+  avgDepthCm: number | null;
+  maxDepthCm: number | null;
+  roadMaterial: string | null;
+  roadType: string | null;
+  repairMethod: string | null;
+  eligibleForCosting: boolean;
+};
+
+export type CostLineItem = {
+  item: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  amount: number;
+  unitCostLabel?: string;
+};
+
+export type CostGeometry = {
+  volumeM3: number | null;
+  areaM2: number | null;
+  lengthM: number | null;
+  widthM: number | null;
+  avgDepthCm: number | null;
+  maxDepthCm: number | null;
+  measurementStatus: string;
+  volumeSource: string;
+};
+
+export type CostFormula = {
+  repairVolumeM3: number;
+  allowanceFactor: number;
+  looseVolumeM3: number;
+  densityKgM3: number;
+  requiredMassKg: number;
+  taxRate: number;
+  contingencyRate: number;
+  material: string[];
+};
+
+export type CostEstimateResult = {
+  potholeId: string | null;
+  pothole: {
+    id: string;
+    potholeId: string | null;
+    imagePath: string | null;
+    confidence: number | null;
+    latitude: number | null;
+    longitude: number | null;
+    locationName: string | null;
+  };
+  geometry: CostGeometry | null;
+  road: {
+    material: string | null;
+    roadType: string | null;
+    region: string | null;
+    state: string | null;
+    city: string | null;
+    authority: string | null;
+  };
+  repair: {
+    method: string | null;
+    compactionAllowance: number;
+    densityKgM3: number;
+    requiredMassKg: number;
+    looseVolumeM3: number;
+  };
+  materials: CostLineItem[];
+  labour: CostLineItem[];
+  equipment: CostLineItem[];
+  transport: CostLineItem[];
+  materialSubtotal: number;
+  labourSubtotal: number;
+  equipmentSubtotal: number;
+  transportSubtotal: number;
+  allowance: number;
+  subtotal: number;
+  tax: number;
+  contingency: number;
+  totalEstimatedCost: number;
+  currency: string;
+  rateSource: string;
+  rateEffectiveDate: string;
+  formula: CostFormula | null;
+  calculationStatus: string;
+  storedEstimateId: string;
+};
+
+export type CostOptions = {
+  regions: {
+    states: string[];
+    cities: string[];
+    authorities: string[];
+  };
+  roadTypes: string[];
+  roadMaterials: string[];
+  repairMethodsByMaterial: Record<string, string[]>;
+};
+
+export type StoredEstimate = {
+  id: string;
+  roadMaterial: string | null;
+  roadType: string | null;
+  repairMethod: string | null;
+  regionState: string | null;
+  regionCity: string | null;
+  roadAuthority: string | null;
+  geometry: CostGeometry | null;
+  materials: CostLineItem[];
+  labour: CostLineItem[];
+  equipment: CostLineItem[];
+  transport: CostLineItem[];
+  materialSubtotal: number;
+  labourSubtotal: number;
+  equipmentSubtotal: number;
+  transportSubtotal: number;
+  allowance: number;
+  subtotal: number;
+  tax: number;
+  contingency: number;
+  total: number;
+  currency: string;
+  rateSource: string | null;
+  rateEffectiveDate: string | null;
+  formula: CostFormula | null;
+  calculationStatus: string;
+  updatedAt: string;
+};
+
+export function fetchCostPotholes() {
+  return fetchJson<{ success: true; count: number; data: CostPothole[] }>(
+    "/api/cost-estimator/potholes",
+  );
+}
+
+export function fetchCostOptions() {
+  return fetchJson<{ success: true; data: CostOptions }>("/api/cost-estimator/options");
+}
+
+export function fetchStoredEstimate(potholeId: string) {
+  return fetchJson<{ success: true; data: StoredEstimate | null }>(
+    `/api/cost-estimator/${encodeURIComponent(potholeId)}/estimate`,
+  );
+}
+
+export type CalculateRequestBody = {
+  potholeId: string;
+  roadType: string;
+  roadMaterial: string;
+  repairMethod: string;
+  region: { state: string; city: string };
+  roadAuthority: string;
+};
+
+export async function postCalculateCost(body: CalculateRequestBody) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(`${API_BASE}/api/cost-estimator/calculate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const json = (await res.json()) as
+      | { success: true; data: CostEstimateResult }
+      | { success: false; code?: string; message?: string; error?: string; data?: unknown };
+    if (!json.success) {
+      const err = new Error(json.message ?? json.error ?? "Calculation failed") as Error & {
+        code?: string;
+      };
+      if (json.code) err.code = json.code;
+      throw err;
+    }
+    return json.data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export type Inspection = {
   id: string;
