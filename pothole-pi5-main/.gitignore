@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+dataset/
+dataset_*/
+my_images/
+real_test_images/
+verification_output/
+detection_captures/
+*.log
+.env
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+detection_results/

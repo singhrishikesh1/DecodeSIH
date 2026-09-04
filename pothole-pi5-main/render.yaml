@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pothole-detection
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: python web_app.py
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: MODEL_PATH
+        value: weights/pretrained/best.pt
+    healthCheckPath: /

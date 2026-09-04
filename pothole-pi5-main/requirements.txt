@@ -1,0 +1,18 @@
+# Raspberry Pi 5 Inference Dependencies
+# Install: pip install -r requirements-pi.txt
+
+# Core
+numpy>=1.24.0
+opencv-python-headless>=4.8.0
+onnxruntime>=1.16.0
+PyYAML>=6.0
+Pillow>=10.0.0
+
+# Pi Camera (install via apt, not pip)
+# sudo apt install -y python3-picamera2
+
+# GPS (optional)
+# pyserial>=3.5
+
+# Video display (only if running with GUI)
+# opencv-python>=4.8.0  # uncomment for cv2.imshow() support

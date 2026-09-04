@@ -30,8 +30,7 @@ import cv2  # noqa: E402
 from onnx_detector import OnnxPotholeDetector  # noqa: E402
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL = os.path.join(BASE, "..", "pothole-detection-web", "weights",
-                     "pretrained", "best.onnx")
+MODEL = os.path.join(BASE, "..", "weights", "pretrained", "best.onnx")
 P026 = os.path.join(BASE, "..", "backend", "uploads", "potholes",
                     "pothole_P026.jpg")
 P006 = os.path.join(BASE, "..", "backend", "uploads", "potholes",
