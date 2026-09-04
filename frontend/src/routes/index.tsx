@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Nav } from "@/components/rx/Nav";
+import { AppNav } from "@/components/rx/AppNav";
 import { Hero } from "@/components/rx/Hero";
 import { Features } from "@/components/rx/Features";
 import { MobileSection } from "@/components/rx/MobileSection";
@@ -8,7 +8,7 @@ import { Partners } from "@/components/rx/Partners";
 import { News } from "@/components/rx/News";
 import { Footer } from "@/components/rx/Footer";
 
-const title = "RX — AI Pothole Detection & Repair Estimation";
+const title = "Dronacharya — AI Pothole Detection & Repair Estimation";
 const description =
   "AI-powered pothole detection from drones with instant repair cost estimation for road infrastructure.";
 
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <div className="min-h-screen bg-background">
-      <Nav />
+      <AppNav />
       <main>
         <Hero />
         <Features />

@@ -33,7 +33,7 @@ import {
 import { formatINR, formatTimeAgo, droneStatusText } from "@/lib/format";
 import { DeviceLocationMap } from "@/components/rx/DeviceLocationMap";
 
-const title = "Overview — RX pothole detection platform";
+  const title = "Overview — Dronacharya pothole detection platform";
 const description =
   "Live drone-based road scanning operations: active survey drones, detected potholes, inspection routes, and real-time alerts on one map-first dashboard.";
 

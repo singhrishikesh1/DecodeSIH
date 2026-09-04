@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import base64
 import os
+from importlib import import_module
 
 from volumetric_engine import VolumetricEngine
 from cost_risk_engine import CostRiskEngine
@@ -24,10 +25,11 @@ class DefectDetector:
     def _initialize_yolo(self):
         """Attempts to load PyTorch / Ultralytics YOLOv8 model if available"""
         try:
-            from ultralytics import YOLO
+            yolo_module = import_module("ultralytics")
+            yolo_class = getattr(yolo_module, "YOLO")
             model_path = os.path.join(os.path.dirname(__file__), "weights", "yolov8_infrastructure.pt")
             if os.path.exists(model_path):
-                self.yolo_model = YOLO(model_path)
+                self.yolo_model = yolo_class(model_path)
                 print("[DefectDetector]: Custom YOLOv8 model loaded successfully.")
             else:
                 print("[DefectDetector]: Custom weights not found. Using high-accuracy vision inference fallback.")

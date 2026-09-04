@@ -14,6 +14,7 @@ const inspectionsRoutes = require('./routes/inspections');
 const potholesRoutes = require('./routes/potholes');
 const dashboardRoutes = require('./routes/dashboard');
 const liveRoutes = require('./routes/live');
+const costEstimatorRoutes = require('./routes/costEstimator');
 
 const app = express();
 const PORT = process.env.PORT || 5002;
@@ -49,6 +50,9 @@ app.use('/api/inspections', inspectionsRoutes);
 app.use('/api/potholes', potholesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/live', liveRoutes);
+
+// ─── Cost Estimator (deterministic engineering repair cost engine) ──────────
+app.use('/api/cost-estimator', costEstimatorRoutes);
 
 // Serve the final integrated frontend build (Rishi frontend) from frontend/dist.
 const frontendBuild = path.join(__dirname, '../../frontend/dist');

@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "RX — AI Pothole Detection & Repair Estimation" },
+      { title: "Dronacharya — AI Pothole Detection & Repair Estimation" },
       {
         name: "description",
         content: "AI-powered pothole detection from drones with instant repair cost estimation for road infrastructure.",

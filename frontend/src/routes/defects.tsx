@@ -29,7 +29,7 @@ import {
   severityStyle,
 } from "@/lib/format";
 
-const title = "Defects & Repairs — RX pothole detection platform";
+const title = "Defects & Repairs — Dronacharya pothole detection platform";
 
 export const Route = createFileRoute("/defects")({
   head: () => ({

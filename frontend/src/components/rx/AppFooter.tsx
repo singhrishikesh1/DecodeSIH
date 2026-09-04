@@ -20,7 +20,7 @@ export function AppFooter() {
         </Link>
       </div>
       <div className="mx-auto max-w-[1400px] px-5 pb-8 text-xs text-subtle/60 md:px-8">
-        V.01.24 — © {new Date().getFullYear()} RX
+        V.01.24 — © {new Date().getFullYear()} Dronacharya
       </div>
     </footer>
   );

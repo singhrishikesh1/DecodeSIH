@@ -39,7 +39,7 @@ lidar:
   port: null
 
 detection:
-  model_path: "../pothole-detection-web/weights/pretrained/best.onnx"
+  model_path: "../weights/pretrained/best.onnx"   # resolved relative to config dir -> repo/weights/pretrained/best.onnx
   input_size: 640
   confidence_threshold: 0.30
   nms_threshold: 0.45

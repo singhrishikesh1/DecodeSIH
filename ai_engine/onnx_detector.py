@@ -1,8 +1,12 @@
 """YOLOv8 object-detection inference wrapper (ONNX Runtime).
 
-Model: weights/pretrained/best.onnx
+Model: weights/pretrained/best.onnx  (single production copy, repo root)
 Input : images [1, 3, 640, 640]  float32 (NCHW, RGB, /255)
 Output: output0 [1, 5, 8400]  float32
+
+The model_path is resolved by the caller (config_loader resolves it relative to
+the config file directory, not CWD). If the file does not exist on disk, _load
+RAISES a clear error rather than silently skipping detection.
 
 VERIFIED OUTPUT LAYOUT (2026-09-02, inspected raw tensor values):
   output0 is channel-major: [1, 5, 8400]  -> 5 rows, 8400 anchor predictions.
@@ -87,6 +91,16 @@ class OnnxPotholeDetector:
         self._load()
 
     def _load(self):
+        # Fail clearly if the model file is missing or unreadable: an absent
+        # model is a configuration error and must never be silently skipped
+        # (which would look like "no potholes detected").
+        if not os.path.exists(self.model_path):
+            raise FileNotFoundError(
+                f"ONNX pothole model not found: {self.model_path!r}. "
+                f"Expected the single production copy at "
+                f"<repo>/weights/pretrained/best.onnx (configured via "
+                f"config.yaml 'detection.model_path')."
+            )
         try:
             import onnxruntime as ort
             self.session = ort.InferenceSession(
@@ -94,7 +108,8 @@ class OnnxPotholeDetector:
             )
             self.input_name = self.session.get_inputs()[0].name
             logger.info("Model loaded: %s (providers=%s, debug=%s)",
-                        self.model_path, ort.get_available_providers(), self.debug)
+                        os.path.abspath(self.model_path),
+                        ort.get_available_providers(), self.debug)
         except Exception as e:  # noqa: BLE001
             logger.error("Failed to load ONNX model %s: %s", self.model_path, e)
             self.session = None

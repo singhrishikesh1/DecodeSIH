@@ -7,7 +7,7 @@ import { ArrowLeft, Compass, MapPin, Maximize, Minus, Plus, Radio, WifiOff } fro
 import { fetchDrones, fetchPotholes, type Drone, type Pothole } from "@/lib/api";
 import { formatCoord, projectGPS, severityStyle } from "@/lib/format";
 
-const title = "Map — RX pothole detection platform";
+const title = "Map — Dronacharya pothole detection platform";
 
 export const Route = createFileRoute("/map")({
   head: () => ({
