@@ -192,7 +192,7 @@ const initialDrones = [
     id: "DRONE-PUNE-02",
     name: "AeroFalcon-P2 Autonomous",
     model: "Skydio X2D Autonomous Inspector",
-    status: "FLYING",
+    status: "STANDBY",
     assignedArea: "Kharadi EON Bridge Sector",
     lat: 18.5515,
     lng: 73.9348,
